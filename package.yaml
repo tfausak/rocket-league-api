@@ -7,6 +7,7 @@ ghc-options: -Wall
 library:
   dependencies:
     - aeson
+    - containers
     - http-client-tls
     - servant
     - servant-client
@@ -16,7 +17,6 @@ library:
 executables:
   rocket-league-api:
     dependencies:
-      - aeson
       - http-client-tls
       - rocket-league-api
       - servant-client
