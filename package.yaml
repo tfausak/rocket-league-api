@@ -9,9 +9,11 @@ library:
     - aeson
     - containers
     - http-client-tls
+    - scientific
     - servant
     - servant-client
     - text
+    - vector
   source-dirs: library
 
 executables:

@@ -3,8 +3,6 @@
 
 module Main where
 
-import Control.Monad
-import Control.Monad.IO.Class
 import Data.Text
 import Network.HTTP.Client.TLS
 import RocketLeagueApi
@@ -24,14 +22,18 @@ main = do
     playerIds = PlayerIds [playerId]
     playlist = PlaylistCompetitiveSoloDuel
     statType = StatTypeGoals
-  void . flip runClientM clientEnv $ do
-    liftIO . print =<< getPlayerSkills platform playerId token
-    liftIO . print =<< postPlayerSkills platform playerIds token
-    liftIO . print =<< getPlayerTitles platform playerId token
-    liftIO . print =<< getPopulation token
-    liftIO . print =<< getRegions token
-    liftIO . print =<< getSkillsLeaderboard platform playlist token
-    liftIO . print =<< getStatsLeaderboard platform token
-    liftIO . print =<< getStatLeaderboard platform statType token
-    liftIO . print =<< getPlayerStat platform statType playerId token
-    liftIO . print =<< postPlayerStat platform statType playerIds token
+    run f = do
+      x <- runClientM (f token) clientEnv
+      case x of
+        Left l -> fail $ show l
+        Right r -> print r
+  run $ getPlayerSkills platform playerId
+  run $ postPlayerSkills platform playerIds
+  run $ getPlayerTitles platform playerId
+  run $ getPopulation
+  run $ getRegions
+  run $ getSkillsLeaderboard platform playlist
+  run $ getStatsLeaderboard platform
+  run $ getStatLeaderboard platform statType
+  run $ getPlayerStat platform statType playerId
+  run $ postPlayerStat platform statType playerIds
