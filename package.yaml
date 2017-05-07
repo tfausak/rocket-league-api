@@ -1,0 +1,29 @@
+name: rocket-league-api
+version: 0.0.0
+
+dependencies: base
+ghc-options: -Wall
+
+library:
+  dependencies:
+    - aeson
+    - http-client-tls
+    - servant
+    - servant-client
+    - text
+  source-dirs: library
+
+executables:
+  rocket-league-api:
+    dependencies:
+      - aeson
+      - http-client-tls
+      - rocket-league-api
+      - servant-client
+      - text
+    ghc-options:
+      - -rtsopts
+      - -threaded
+      - -with-rtsopts=-N
+    main: rocket-league-api.hs
+    source-dirs: executables
