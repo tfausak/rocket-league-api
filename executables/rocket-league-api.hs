@@ -1,49 +1,68 @@
-{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
 import Control.Monad
-import Data.Text
 import Network.HTTP.Client.TLS
 import RocketLeagueApi
 import Servant.Client
 import System.Environment
+
+import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 main :: IO ()
 main = do
   [rawToken] <- getArgs
   manager <- newTlsManager
   let
-    token = Just . Token $ pack rawToken
-    baseUrl = BaseUrl Https "api.rocketleaguegame.com" 443 "/api/v1"
+    token = Just . Token $ Text.pack rawToken
     clientEnv = ClientEnv manager baseUrl
-    platform = PlatformSteam
-    playerId = PlayerId "76561198139217900"
-    playerIds = PlayerIds [playerId, PlayerId "76561198067659334"]
-    playlist = PlaylistCompetitiveSoloDuel
-    statType = StatTypeGoals
     run f = do
       x <- runClientM (f token) clientEnv
       case x of
         Left l -> fail $ show l
         Right r -> print r
 
-  run $ getPlayerSkills platform playerId
-  run $ postPlayerSkills platform playerIds
-  run $ getPlayerTitles platform playerId
   run $ getPopulation
   run $ getRegions
-  run $ getSkillsLeaderboard platform playlist
-  run $ getStatsLeaderboard platform
-  run $ getStatLeaderboard platform statType
-  run $ getPlayerStat platform statType playerId
-  run $ postPlayerStat platform statType playerIds
 
-  let
-    platforms = [minBound .. maxBound] :: [Platform]
-    statTypes = [minBound .. maxBound] :: [StatType]
-  forM_ platforms $ \p ->
-    forM_ statTypes $ \s -> do
-      print (p, s)
-      run $ getStatLeaderboard p s
+  forM_ platforms $ \platform -> do
+    print platform
+    run $ getStatsLeaderboard platform
+
+    forM_ statTypes $ \statType -> do
+      print (platform, statType)
+      run $ getStatLeaderboard platform statType
+
+    forM_ playlists $ \playlist -> do
+      print (platform, playlist)
+      run $ getSkillsLeaderboard platform playlist
+
+  forM_ players $ \(platform, rawPlayerIds) -> do
+    let playerIds = PlayerIds (Set.fromList rawPlayerIds)
+    print (platform, playerIds)
+    run $ postPlayerSkills platform playerIds
+
+    forM_ statTypes $ \statType -> do
+      print (platform, playerIds, statType)
+      run $ postPlayerStat platform statType playerIds
+
+    forM_ rawPlayerIds $ \playerId -> do
+      print (platform, playerId)
+      run $ getPlayerSkills platform playerId
+      run $ getPlayerTitles platform playerId
+
+      forM_ statTypes $ \statType -> do
+        print (platform, playerId, statType)
+        run $ getPlayerStat platform statType playerId
+ where
+  baseUrl = BaseUrl Https "api.rocketleaguegame.com" 443 "/api/v1"
+  platforms = [minBound .. maxBound]
+  playlists = [minBound .. maxBound]
+  statTypes = [minBound .. maxBound]
+  players =
+    [ (PlatformPS4, [PlayerId "shamott21", PlayerId "Iris_-lily-_"])
+    , (PlatformSteam, [PlayerId "76561198261574626", PlayerId "76561198149461762"])
+    , (PlatformXboxOne, [PlayerId "MSTIO", PlayerId "Best Mr Pedro"])
+    ]

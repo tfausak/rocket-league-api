@@ -210,7 +210,7 @@ instance FromJSON Title where
 data Skill = Skill
   { skillSkill :: Integer
   , skillTier :: Integer
-  , skillUserId :: PlayerId
+  , skillUserId :: Maybe PlayerId
   , skillUserName :: Text
   } deriving (Eq, Generic, Ord, Show)
 
@@ -305,7 +305,7 @@ instance FromJSON TypedStat where
       }
 
 data Player = Player
-  { playerUserId :: PlayerId
+  { playerUserId :: Maybe PlayerId
   , playerUserName :: Text
   , playerPlayerSkills :: [PlayerSkill]
   } deriving (Eq, Generic, Ord, Show)

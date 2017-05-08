@@ -19,6 +19,7 @@ library:
 executables:
   rocket-league-api:
     dependencies:
+      - containers
       - http-client-tls
       - rocket-league-api
       - servant-client
