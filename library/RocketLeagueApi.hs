@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
@@ -7,12 +8,14 @@
 module RocketLeagueApi where
 
 import Data.Aeson.Types
+import Data.List
 import Data.Map (Map)
 import Data.Monoid
 import Data.Proxy
 import Data.Scientific
 import Data.Set (Set)
 import Data.Text (Text)
+import GHC.Generics
 import Servant.API
 import Servant.Client
 
@@ -196,16 +199,10 @@ instance FromJSON Population where
 data RegionInfo = RegionInfo
   { regionInfoRegion :: Region
   , regionInfoPlatforms :: Platforms
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance FromJSON RegionInfo where
-  parseJSON = withObject "RegionInfo" $ \o -> do
-    region <- o .: "region"
-    platforms <- o .: "platforms"
-    pure RegionInfo
-      { regionInfoRegion = region
-      , regionInfoPlatforms = platforms
-      }
+  parseJSON = genericParseJSON $ snakeFieldOptions "regionInfo"
 
 data Region
   = RegionASC
@@ -257,40 +254,20 @@ data Skill = Skill
   , skillTier :: Integer
   , skillUserId :: PlayerId
   , skillUserName :: Text
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance FromJSON Skill where
-  parseJSON = withObject "Skill" $ \o -> do
-    skill <- o .: "skill"
-    tier <- o .: "tier"
-    userId <- o .: "user_id"
-    userName <- o .: "user_name"
-    pure Skill
-      { skillSkill = skill
-      , skillTier = tier
-      , skillUserId = userId
-      , skillUserName = userName
-      }
+  parseJSON = genericParseJSON $ snakeFieldOptions "skill"
 
 data Stat = Stat
   { statStatType :: StatType
   , statUserId :: PlayerId
   , statUserName :: Text
   , statValue :: Integer
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance FromJSON Stat where
-  parseJSON = withObject "Stat" $ \o -> do
-    statType <- o .: "stat_type"
-    userId <- o .: "user_id"
-    userName <- o .: "user_name"
-    value <- o .: "value"
-    pure Stat
-      { statStatType = statType
-      , statUserId = userId
-      , statUserName = userName
-      , statValue = value
-      }
+  parseJSON = genericParseJSON $ snakeFieldOptions "stat"
 
 newtype Single a = Single
   { singleValue :: a
@@ -308,16 +285,10 @@ instance FromJSON a => FromJSON (Single a) where
 data Stats = Stats
   { statsStatType :: StatType
   , statsStats :: [TypedStat]
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance FromJSON Stats where
-  parseJSON = withObject "Stats" $ \o -> do
-    statType <- o .: "stat_type"
-    stats <- o .: "stats"
-    pure Stats
-      { statsStatType = statType
-      , statsStats = stats
-      }
+  parseJSON = genericParseJSON $ snakeFieldOptions "stats"
 
 newtype TypedStat = TypedStat
   { typedStatValue :: Stat
@@ -379,18 +350,10 @@ data Player = Player
   { playerUserId :: PlayerId
   , playerUserName :: Text
   , playerPlayerSkills :: [PlayerSkill]
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance FromJSON Player where
-  parseJSON = withObject "Player" $ \o -> do
-    userId <- o .: "user_id"
-    userName <- o .: "user_name"
-    playerSkills <- o .: "player_skills"
-    pure Player
-      { playerUserId = userId
-      , playerUserName = userName
-      , playerPlayerSkills = playerSkills
-      }
+  parseJSON = genericParseJSON $ snakeFieldOptions "player"
 
 data PlayerSkill = PlayerSkill
   { playerSkillDivision :: Integer
@@ -399,21 +362,18 @@ data PlayerSkill = PlayerSkill
   , playerSkillSkill :: Integer
   , playerSkillTier :: Integer
   , playerSkillTierMax :: Integer
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance FromJSON PlayerSkill where
-  parseJSON = withObject "PlayerSkill" $ \o -> do
-    division <- o .: "division"
-    matchesPlayed <- o .: "matches_played"
-    playlist <- o .: "playlist"
-    skill <- o .: "skill"
-    tier <- o .: "tier"
-    tierMax <- o .: "tier_max"
-    pure PlayerSkill
-      { playerSkillDivision = division
-      , playerSkillMatchesPlayed = matchesPlayed
-      , playerSkillPlaylist = playlist
-      , playerSkillSkill = skill
-      , playerSkillTier = tier
-      , playerSkillTierMax = tierMax
-      }
+  parseJSON = genericParseJSON $ snakeFieldOptions "playerSkill"
+
+snakeFieldOptions :: String -> Options
+snakeFieldOptions prefix = defaultOptions
+  { fieldLabelModifier = camelTo2 '_' . dropPrefix prefix
+  }
+
+dropPrefix :: String -> String -> String
+dropPrefix prefix string =
+  if prefix `isPrefixOf` string
+    then drop (length prefix) string
+    else error $ "dropPrefix: " ++ show prefix ++ " is not a prefix of " ++ show string
