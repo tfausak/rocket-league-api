@@ -92,26 +92,16 @@ data Platform
   = PlatformPS4
   | PlatformSteam
   | PlatformXboxOne
-  deriving (Eq, Ord, Show)
+  deriving (Bounded, Enum, Eq, Generic, Ord, Show)
 
 instance FromJSON Platform where
-  parseJSON = withText "Platform" textToPlatform
+  parseJSON = genericParseJSON $ pascalConstructorOptions "Platform"
 
 instance FromJSONKey Platform where
-  fromJSONKey = FromJSONKeyTextParser textToPlatform
+  fromJSONKey = FromJSONKeyTextParser (parseJSON . String)
 
 instance ToHttpApiData Platform where
-  toUrlPiece platform = case platform of
-    PlatformPS4 -> "ps4"
-    PlatformSteam -> "steam"
-    PlatformXboxOne -> "xboxone"
-
-textToPlatform :: Text -> Parser Platform
-textToPlatform t = case t of
-  "PS4" -> pure PlatformPS4
-  "Steam" -> pure PlatformSteam
-  "XboxOne" -> pure PlatformXboxOne
-  _ -> fail $ "invalid Platform: " ++ show t
+  toUrlPiece = Text.toLower . Text.pack . pascalModifier "Platform" . show
 
 newtype PlayerId = PlayerId
   { playerIdValue :: Text
@@ -145,14 +135,10 @@ data Playlist
   | PlaylistCompetitiveDoubles
   | PlaylistCompetitiveSoloStandard
   | PlaylistCompetitiveStandard
-  deriving (Eq, Ord, Show)
+  deriving (Bounded, Enum, Eq, Ord, Show)
 
 instance ToHttpApiData Playlist where
-  toUrlPiece playlist = case playlist of
-    PlaylistCompetitiveSoloDuel -> "10"
-    PlaylistCompetitiveDoubles -> "11"
-    PlaylistCompetitiveSoloStandard -> "12"
-    PlaylistCompetitiveStandard -> "13"
+  toUrlPiece = Text.pack . show . (+ 10) . fromEnum
 
 data StatType
   = StatTypeAssists
@@ -161,40 +147,21 @@ data StatType
   | StatTypeSaves
   | StatTypeShots
   | StatTypeWins
-  deriving (Eq, Ord, Show)
+  deriving (Bounded, Enum, Eq, Generic, Ord, Show)
 
 instance FromJSON StatType where
-  parseJSON = withText "StatType" $ \t -> case t of
-    "assists" -> pure StatTypeAssists
-    "goals" -> pure StatTypeGoals
-    "mvps" -> pure StatTypeMvps
-    "saves" -> pure StatTypeSaves
-    "shots" -> pure StatTypeShots
-    "wins" -> pure StatTypeWins
-    _ -> fail $ "invalid StatType: " ++ show t
+  parseJSON = genericParseJSON $ snakeConstructorOptions "StatType"
 
 instance ToHttpApiData StatType where
-  toUrlPiece statType = case statType of
-    StatTypeAssists -> "assists"
-    StatTypeGoals -> "goals"
-    StatTypeMvps -> "mvps"
-    StatTypeSaves -> "saves"
-    StatTypeShots -> "shots"
-    StatTypeWins -> "wins"
+  toUrlPiece = Text.pack . snakeModifier "StatType" . show
 
 data Population = Population
   { populationNumPlayers :: Integer
-  , populationPlaylistId :: Integer
-  } deriving (Eq, Ord, Show)
+  , populationPlaylistID :: Integer
+  } deriving (Eq, Generic, Ord, Show)
 
 instance FromJSON Population where
-  parseJSON = withObject "Population" $ \o -> do
-    numPlayers <- o .: "NumPlayers"
-    playlistId <- o .: "PlaylistID"
-    pure Population
-      { populationNumPlayers = numPlayers
-      , populationPlaylistId = playlistId
-      }
+  parseJSON = genericParseJSON $ pascalFieldOptions "population"
 
 data RegionInfo = RegionInfo
   { regionInfoRegion :: Region
@@ -213,19 +180,10 @@ data Region
   | RegionSAM
   | RegionUSE
   | RegionUSW
-  deriving (Eq, Ord, Show)
+  deriving (Bounded, Enum, Eq, Generic, Ord, Show)
 
 instance FromJSON Region where
-  parseJSON = withText "Region" $ \t -> case t of
-    "ASC" -> pure RegionASC
-    "EU" -> pure RegionEU
-    "JPN" -> pure RegionJPN
-    "ME" -> pure RegionME
-    "OCE" -> pure RegionOCE
-    "SAM" -> pure RegionSAM
-    "USE" -> pure RegionUSE
-    "USW" -> pure RegionUSW
-    _ -> fail $ "invalid Region: " ++ show t
+  parseJSON = genericParseJSON $ pascalConstructorOptions "Region"
 
 newtype Platforms = Platforms
   { platformsValue :: Set Platform
@@ -233,7 +191,7 @@ newtype Platforms = Platforms
 
 instance FromJSON Platforms where
   parseJSON = withText "Platforms" $ \t -> do
-    platforms <- mapM textToPlatform $ Text.splitOn "," t
+    platforms <- mapM (parseJSON . String) $ Text.splitOn "," t
     pure Platforms
       { platformsValue = Set.fromList platforms
       }
@@ -367,10 +325,31 @@ data PlayerSkill = PlayerSkill
 instance FromJSON PlayerSkill where
   parseJSON = genericParseJSON $ snakeFieldOptions "playerSkill"
 
+pascalConstructorOptions :: String -> Options
+pascalConstructorOptions prefix = defaultOptions
+  { constructorTagModifier = pascalModifier prefix
+  }
+
+snakeConstructorOptions :: String -> Options
+snakeConstructorOptions prefix = defaultOptions
+  { constructorTagModifier = snakeModifier prefix
+  }
+
+pascalFieldOptions :: String -> Options
+pascalFieldOptions prefix = defaultOptions
+  { fieldLabelModifier = pascalModifier prefix
+  }
+
 snakeFieldOptions :: String -> Options
 snakeFieldOptions prefix = defaultOptions
-  { fieldLabelModifier = camelTo2 '_' . dropPrefix prefix
+  { fieldLabelModifier = snakeModifier prefix
   }
+
+pascalModifier :: String -> String -> String
+pascalModifier = dropPrefix
+
+snakeModifier :: String -> String -> String
+snakeModifier prefix = camelTo2 '_' . pascalModifier prefix
 
 dropPrefix :: String -> String -> String
 dropPrefix prefix string =
