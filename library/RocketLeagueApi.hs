@@ -219,7 +219,7 @@ instance FromJSON Skill where
 
 data Stat = Stat
   { statStatType :: StatType
-  , statUserId :: PlayerId
+  , statUserId :: Maybe PlayerId
   , statUserName :: Text
   , statValue :: Integer
   } deriving (Eq, Generic, Ord, Show)
@@ -254,7 +254,7 @@ newtype TypedStat = TypedStat
 
 instance FromJSON TypedStat where
   parseJSON = withObject "TypedStat" $ \o -> do
-    userId <- o .: "user_id"
+    userId <- o .:? "user_id"
     userName <- o .: "user_name"
     maybeAssists <- o .:? "assists"
     maybeGoals <- o .:? "goals"

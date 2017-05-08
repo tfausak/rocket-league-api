@@ -3,6 +3,7 @@
 
 module Main where
 
+import Control.Monad
 import Data.Text
 import Network.HTTP.Client.TLS
 import RocketLeagueApi
@@ -27,6 +28,7 @@ main = do
       case x of
         Left l -> fail $ show l
         Right r -> print r
+
   run $ getPlayerSkills platform playerId
   run $ postPlayerSkills platform playerIds
   run $ getPlayerTitles platform playerId
@@ -37,3 +39,11 @@ main = do
   run $ getStatLeaderboard platform statType
   run $ getPlayerStat platform statType playerId
   run $ postPlayerStat platform statType playerIds
+
+  let
+    platforms = [minBound .. maxBound] :: [Platform]
+    statTypes = [minBound .. maxBound] :: [StatType]
+  forM_ platforms $ \p ->
+    forM_ statTypes $ \s -> do
+      print (p, s)
+      run $ getStatLeaderboard p s
