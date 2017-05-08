@@ -46,16 +46,27 @@ api :: Proxy Api
 api = Proxy
 
 type Api
-  = CapturePlatform :> "playerskills" :> CapturePlayerId :> Endpoint Get (Single Player)
-  :<|> CapturePlatform :> "playerskills" :> BodyPlayerIds :> Endpoint Post [Player]
-  :<|> CapturePlatform :> "playertitles" :> CapturePlayerId :> Endpoint Get [Title]
-  :<|> "population" :> Endpoint Get (Map Platform [Population])
-  :<|> "regions" :> Endpoint Get [RegionInfo]
-  :<|> CapturePlatform :> "leaderboard" :> "skills" :> CapturePlaylist :> Endpoint Get [Skill]
-  :<|> CapturePlatform :> "leaderboard" :> "stats" :> Endpoint Get [Stats]
-  :<|> CapturePlatform :> "leaderboard" :> "stats" :> CaptureStatType :> Endpoint Get (Single Stats)
-  :<|> CapturePlatform :> "leaderboard" :> "stats" :> CaptureStatType :> CapturePlayerId :> Endpoint Get (Single Stat)
-  :<|> CapturePlatform :> "leaderboard" :> "stats" :> CaptureStatType :> BodyPlayerIds :> Endpoint Post (Single Stat)
+  = GetPlayerSkills
+  :<|> PostPlayerSkills
+  :<|> GetPlayerTitles
+  :<|> GetPopulation
+  :<|> GetRegions
+  :<|> GetSkillsLeaderboard
+  :<|> GetStatsLeaderboard
+  :<|> GetStatLeaderboard
+  :<|> GetPlayerStat
+  :<|> PostPlayerStat
+
+type GetPlayerSkills = CapturePlatform :> "playerskills" :> CapturePlayerId :> Endpoint Get (Single Player)
+type PostPlayerSkills = CapturePlatform :> "playerskills" :> BodyPlayerIds :> Endpoint Post [Player]
+type GetPlayerTitles = CapturePlatform :> "playertitles" :> CapturePlayerId :> Endpoint Get [Title]
+type GetPopulation = "population" :> Endpoint Get (Map Platform [Population])
+type GetRegions = "regions" :> Endpoint Get [RegionInfo]
+type GetSkillsLeaderboard = CapturePlatform :> "leaderboard" :> "skills" :> CapturePlaylist :> Endpoint Get [Skill]
+type GetStatsLeaderboard = CapturePlatform :> "leaderboard" :> "stats" :> Endpoint Get [Stats]
+type GetStatLeaderboard = CapturePlatform :> "leaderboard" :> "stats" :> CaptureStatType :> Endpoint Get (Single Stats)
+type GetPlayerStat = CapturePlatform :> "leaderboard" :> "stats" :> CaptureStatType :> CapturePlayerId :> Endpoint Get (Single Stat)
+type PostPlayerStat = CapturePlatform :> "leaderboard" :> "stats" :> CaptureStatType :> BodyPlayerIds :> Endpoint Post (Single Stat)
 
 type Endpoint method result
   = Header "Authorization" Token :> method '[JSON] result
