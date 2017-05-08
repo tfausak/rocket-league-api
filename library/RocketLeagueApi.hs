@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
 
 -- https://api.rocketleaguegame.com/docs/
@@ -109,31 +110,23 @@ textToPlatform t = case t of
   "XboxOne" -> pure PlatformXboxOne
   _ -> fail $ "invalid Platform: " ++ show t
 
-data PlayerId
-  = PlayerIdPS4 Text
-  | PlayerIdSteam Integer
-  | PlayerIdXboxOne Text
-  deriving (Eq, Ord, Show)
+newtype PlayerId = PlayerId
+  { playerIdValue :: Text
+  } deriving (Eq, Ord, Show)
 
 instance FromJSON PlayerId where
   parseJSON v = case v of
     Number n -> case floatingOrInteger n of
-      Left f -> fail $ "invalid PlayerId: " ++ show (f :: Float)
-      Right i -> pure $ PlayerIdSteam i
-    String s -> pure $ PlayerIdPS4 s -- TODO
+      Left (f :: Float) -> fail $ "invalid PlayerId: " ++ show f
+      Right (i :: Integer) -> pure PlayerId { playerIdValue = Text.pack $ show i }
+    String s -> pure PlayerId { playerIdValue = s }
     _ -> fail $ "invalid PlayerId: " ++ show v
 
 instance ToHttpApiData PlayerId where
-  toUrlPiece playerId = case playerId of
-    PlayerIdPS4 x -> toUrlPiece x
-    PlayerIdSteam x -> toUrlPiece x
-    PlayerIdXboxOne x -> toUrlPiece x
+  toUrlPiece = playerIdValue
 
 instance ToJSON PlayerId where
-  toJSON playerId = case playerId of
-    PlayerIdPS4 x -> toJSON x
-    PlayerIdSteam x -> toJSON x
-    PlayerIdXboxOne x -> toJSON x
+  toJSON = toJSON . playerIdValue
 
 newtype PlayerIds = PlayerIds
   { playerIdsValue :: Set PlayerId
