@@ -28,7 +28,7 @@ getSkillsLeaderboard :: Platform -> Playlist -> Maybe Token -> ClientM [Skill]
 getStatsLeaderboard :: Platform -> Maybe Token -> ClientM [Stats]
 getStatLeaderboard :: Platform -> StatType -> Maybe Token -> ClientM (Single Stats)
 getPlayerStat :: Platform -> StatType -> PlayerId -> Maybe Token -> ClientM (Single Stat)
-postPlayerStat :: Platform -> StatType -> PlayerIds -> Maybe Token -> ClientM (Single Stat)
+postPlayerStat :: Platform -> StatType -> PlayerIds -> Maybe Token -> ClientM [Stat]
 
 getPlayerSkills
   :<|> postPlayerSkills
@@ -66,7 +66,7 @@ type GetSkillsLeaderboard = CapturePlatform :> "leaderboard" :> "skills" :> Capt
 type GetStatsLeaderboard = CapturePlatform :> "leaderboard" :> "stats" :> Endpoint Get [Stats]
 type GetStatLeaderboard = CapturePlatform :> "leaderboard" :> "stats" :> CaptureStatType :> Endpoint Get (Single Stats)
 type GetPlayerStat = CapturePlatform :> "leaderboard" :> "stats" :> CaptureStatType :> CapturePlayerId :> Endpoint Get (Single Stat)
-type PostPlayerStat = CapturePlatform :> "leaderboard" :> "stats" :> CaptureStatType :> BodyPlayerIds :> Endpoint Post (Single Stat)
+type PostPlayerStat = CapturePlatform :> "leaderboard" :> "stats" :> CaptureStatType :> BodyPlayerIds :> Endpoint Post [Stat]
 
 type Endpoint method result
   = Header "Authorization" Token :> method '[JSON] result
