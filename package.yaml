@@ -4,7 +4,6 @@ version: 0.0.0
 dependencies:
   - aeson
   - base
-  - bytestring
   - containers
   - http-client-tls
   - QuickCheck
@@ -15,6 +14,7 @@ dependencies:
   - servant-mock
   - servant-server
   - servant-swagger
+  - servant-swagger-ui
   - swagger2
   - text
   - vector

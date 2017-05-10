@@ -28,10 +28,10 @@ import Servant.Docs hiding (Endpoint)
 import Servant.Mock
 import Servant.Server
 import Servant.Swagger
+import Servant.Swagger.UI
 import System.Environment
 import Test.QuickCheck
 
-import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Swagger as Swagger
@@ -51,10 +51,13 @@ main = do
         Left l -> fail $ show l
         Right r -> print r
 
-  void . forkIO . run 8080 . serve api $ mock api Proxy
+  void . forkIO . run 8080 $ serve
+    (Proxy :: Proxy (SwaggerSchemaUI "swagger-ui" "swagger.json" :<|> "api" :> "v1" :> Api))
+    (swaggerSchemaUIServer (toSwagger api) :<|> mock api Proxy)
   putStrLn . markdown $ docs api
-  LazyByteString.putStr . encode $ toSwagger api
-  putStrLn ""
+
+  putStrLn "Press Enter to run tests, Ctrl-C to exit."
+  void getLine
 
   test $ getPopulation
   test $ getRegions
