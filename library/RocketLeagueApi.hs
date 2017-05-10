@@ -22,6 +22,7 @@ import Servant.API
 import Servant.Client
 import Servant.Docs hiding (Endpoint)
 
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
@@ -85,16 +86,16 @@ type CapturePlaylist = Capture "playlist" Playlist
 type CaptureStatType = Capture "stat_type" StatType
 
 instance ToCapture CapturePlatform where
-  toCapture _ = DocCapture "platform" "TODO"
+  toCapture _ = DocCapture "platform" "The platform."
 
 instance ToCapture CapturePlayerId where
-  toCapture _ = DocCapture "player_id" "TODO"
+  toCapture _ = DocCapture "player_id" "The player ID."
 
 instance ToCapture CapturePlaylist where
-  toCapture _ = DocCapture "playlist" "TODO"
+  toCapture _ = DocCapture "playlist" "The playlist."
 
 instance ToCapture CaptureStatType where
-  toCapture _ = DocCapture "stat_type" "TODO"
+  toCapture _ = DocCapture "stat_type" "The stat type."
 
 newtype Token = Token
   { tokenValue :: Text
@@ -125,7 +126,7 @@ instance ToJSONKey Platform where
   toJSONKey = toJSONKeyText toUrlPiece
 
 instance ToSample Platform where
-  toSamples _ = noSamples
+  toSamples _ = samples [minBound .. maxBound]
 
 newtype PlayerId = PlayerId
   { playerIdValue :: Text
@@ -145,6 +146,13 @@ instance ToHttpApiData PlayerId where
 instance ToJSON PlayerId where
   toJSON = toJSON . playerIdValue
 
+instance ToSample PlayerId where
+  toSamples _ =
+    [ ("PlayStation 4", PlayerId "Iris_-lily-_")
+    , ("Steam", PlayerId "76561198149461762")
+    , ("Xbox One", PlayerId "Best Mr Pedro")
+    ]
+
 newtype PlayerIds = PlayerIds
   { playerIdsValue :: Set PlayerId
   } deriving (Eq, Ord, Show)
@@ -155,7 +163,13 @@ instance ToJSON PlayerIds where
     ]
 
 instance ToSample PlayerIds where
-  toSamples _ = noSamples
+  toSamples _ =
+    [ ("empty", PlayerIds Set.empty)
+    , ("PlayStation 4", PlayerIds . Set.singleton $ PlayerId "Iris_-lily-_")
+    , ("Steam", PlayerIds . Set.singleton $ PlayerId "76561198149461762")
+    , ("Xbox One", PlayerIds . Set.singleton $ PlayerId "Best Mr Pedro")
+    , ("multiple", PlayerIds $ Set.fromList [PlayerId "76561198067659334", PlayerId "76561198213713880"])
+    ]
 
 data Playlist
   = PlaylistCompetitiveSoloDuel
@@ -200,7 +214,11 @@ instance ToJSON Populations where
   toJSON = toJSON . populationsValue
 
 instance ToSample Populations where
-  toSamples _ = noSamples
+  toSamples _ = singleSample . Populations $ Map.fromList
+    [ (PlatformPS4, [Population 5646 11])
+    , (PlatformSteam, [Population 4413 11])
+    , (PlatformXboxOne, [Population 1513 11])
+    ]
 
 data Population = Population
   { populationNumPlayers :: Integer
@@ -214,7 +232,12 @@ instance ToJSON Population where
   toJSON = genericToJSON $ pascalFieldOptions "population"
 
 instance ToSample Population where
-  toSamples _ = noSamples
+  toSamples _ =
+    [ ("Competitive Duel", Population 322 10)
+    , ("Competitive Doubles", Population 1513 11)
+    , ("Competitive Solo Standard", Population 224 12)
+    , ("Competitive Standard", Population 595 13)
+    ]
 
 data RegionInfo = RegionInfo
   { regionInfoRegion :: Region
@@ -228,7 +251,7 @@ instance ToJSON RegionInfo where
   toJSON = genericToJSON $ snakeFieldOptions "regionInfo"
 
 instance ToSample RegionInfo where
-  toSamples _ = noSamples
+  toSamples _ = singleSample . RegionInfo RegionUSE . Platforms $ Set.fromList [minBound .. maxBound]
 
 data Region
   = RegionASC
@@ -276,7 +299,7 @@ instance ToJSON Title where
   toJSON title = object ["title" .= titleValue title]
 
 instance ToSample Title where
-  toSamples _ = noSamples
+  toSamples _ = singleSample $ Title "Season3GrandChampion"
 
 data Skill = Skill
   { skillSkill :: Integer
@@ -292,7 +315,11 @@ instance ToJSON Skill where
   toJSON = genericToJSON $ snakeFieldOptions "skill"
 
 instance ToSample Skill where
-  toSamples _ = noSamples
+  toSamples _ =
+    [ ("PlayStation 4", Skill 1473 19 Nothing "LilPlayer-V3")
+    , ("Steam", Skill 1639 19 (Just $ PlayerId "76561198067659334") "[MOCK] Kaydop")
+    , ("Xbox One", Skill 1303 17 Nothing "MSTIO")
+    ]
 
 data Stat = Stat
   { statStatType :: StatType
@@ -308,7 +335,11 @@ instance ToJSON Stat where
   toJSON = genericToJSON $ snakeFieldOptions "stat"
 
 instance ToSample Stat where
-  toSamples _ = noSamples
+  toSamples _ =
+    [ ("PlayStation 4", Stat StatTypeGoals Nothing "harmen501" 47104)
+    , ("Steam", Stat StatTypeGoals (Just $ PlayerId "76561198139217900") "Ronito" 25124)
+    , ("Xbox One", Stat StatTypeGoals Nothing "MadMassacre510" 43661)
+    ]
 
 newtype Single a = Single
   { singleValue :: a
@@ -341,7 +372,7 @@ instance ToJSON Stats where
   toJSON = genericToJSON $ snakeFieldOptions "stats"
 
 instance ToSample Stats where
-  toSamples _ = noSamples
+  toSamples _ = singleSample $ Stats StatTypeGoals $ filter (\x -> statStatType (typedStatValue x) == StatTypeGoals) $ map snd $ toSamples (Proxy :: Proxy TypedStat)
 
 newtype TypedStat = TypedStat
   { typedStatValue :: Stat
@@ -406,6 +437,9 @@ instance ToJSON TypedStat where
     , toUrlPiece (statStatType (typedStatValue x)) .= statValue (typedStatValue x)
     ]
 
+instance ToSample TypedStat where
+  toSamples _ = map (\(x, y) -> (x, TypedStat y)) $ toSamples (Proxy :: Proxy Stat)
+
 data Player = Player
   { playerUserId :: Maybe PlayerId
   , playerUserName :: Text
@@ -419,7 +453,11 @@ instance ToJSON Player where
   toJSON = genericToJSON $ snakeFieldOptions "player"
 
 instance ToSample Player where
-  toSamples _ = noSamples
+  toSamples _ =
+    [ ("PlayStation 4", Player Nothing "harmen501" $ map snd $ toSamples (Proxy :: Proxy PlayerSkill))
+    , ("Steam", Player (Just $ PlayerId "76561198139217900") "Ronito" $ map snd $ toSamples (Proxy :: Proxy PlayerSkill))
+    , ("Xbox One", Player Nothing "MadMassacre510" $ map snd $ toSamples (Proxy :: Proxy PlayerSkill))
+    ]
 
 data PlayerSkill = PlayerSkill
   { playerSkillDivision :: Integer
@@ -435,6 +473,9 @@ instance FromJSON PlayerSkill where
 
 instance ToJSON PlayerSkill where
   toJSON = genericToJSON $ snakeFieldOptions "playerSkill"
+
+instance ToSample PlayerSkill where
+  toSamples _ = singleSample $ PlayerSkill 0 664 11 1614 19 19
 
 pascalConstructorOptions :: String -> Options
 pascalConstructorOptions prefix = defaultOptions
