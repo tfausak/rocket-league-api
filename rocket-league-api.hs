@@ -9,6 +9,7 @@
 module Main where
 
 import Control.Monad
+import Data.Aeson
 import Data.Aeson.Types
 import Data.List
 import Data.Map (Map)
@@ -23,11 +24,14 @@ import Servant.API
 import Servant.Client
 import Servant.Docs hiding (Endpoint)
 import Servant.Mock
+import Servant.Swagger
 import System.Environment
 import Test.QuickCheck
 
+import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Swagger as Swagger
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
@@ -45,8 +49,8 @@ main = do
         Right r -> print r
 
   let _ = mock api Proxy
-
   putStrLn . markdown $ docs api
+  LazyByteString.putStr . encode $ toSwagger api
 
   run $ getPopulation
   run $ getRegions
@@ -163,7 +167,7 @@ instance ToCapture CaptureStatType where
 
 newtype Token = Token
   { tokenValue :: Text
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance FromHttpApiData Token where
   parseUrlPiece t = case Text.words t of
@@ -172,6 +176,8 @@ instance FromHttpApiData Token where
 
 instance ToHttpApiData Token where
   toUrlPiece token = Text.pack "Token " <> tokenValue token
+
+instance Swagger.ToParamSchema Token
 
 data Platform
   = PlatformPS4
@@ -200,12 +206,16 @@ instance ToJSON Platform where
 instance ToJSONKey Platform where
   toJSONKey = toJSONKeyText toUrlPiece
 
+instance Swagger.ToParamSchema Platform
+
 instance ToSample Platform where
   toSamples _ = samples [minBound .. maxBound]
 
+instance Swagger.ToSchema Platform
+
 newtype PlayerId = PlayerId
   { playerIdValue :: Text
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance Arbitrary PlayerId where
   arbitrary = PlayerId <$> arbitraryText
@@ -227,6 +237,8 @@ instance ToHttpApiData PlayerId where
 instance ToJSON PlayerId where
   toJSON = toJSON . playerIdValue
 
+instance Swagger.ToParamSchema PlayerId
+
 instance ToSample PlayerId where
   toSamples _ =
     [ ("PlayStation 4", PlayerId "Iris_-lily-_")
@@ -234,9 +246,11 @@ instance ToSample PlayerId where
     , ("Xbox One", PlayerId "Best Mr Pedro")
     ]
 
+instance Swagger.ToSchema PlayerId
+
 newtype PlayerIds = PlayerIds
   { playerIdsValue :: Set PlayerId
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance FromJSON PlayerIds where
   parseJSON = withObject "PlayerIds" $ \o -> do
@@ -257,12 +271,14 @@ instance ToSample PlayerIds where
     , ("multiple", PlayerIds $ Set.fromList [PlayerId "76561198067659334", PlayerId "76561198213713880"])
     ]
 
+instance Swagger.ToSchema PlayerIds
+
 data Playlist
   = PlaylistCompetitiveSoloDuel
   | PlaylistCompetitiveDoubles
   | PlaylistCompetitiveSoloStandard
   | PlaylistCompetitiveStandard
-  deriving (Bounded, Enum, Eq, Ord, Show)
+  deriving (Bounded, Enum, Eq, Generic, Ord, Show)
 
 instance FromHttpApiData Playlist where
   parseUrlPiece t = case t of
@@ -274,6 +290,8 @@ instance FromHttpApiData Playlist where
 
 instance ToHttpApiData Playlist where
   toUrlPiece = Text.pack . show . (+ 10) . fromEnum
+
+instance Swagger.ToParamSchema Playlist
 
 data StatType
   = StatTypeAssists
@@ -299,9 +317,13 @@ instance ToHttpApiData StatType where
 instance ToJSON StatType where
   toJSON = genericToJSON $ snakeConstructorOptions "StatType"
 
+instance Swagger.ToParamSchema StatType
+
+instance Swagger.ToSchema StatType
+
 newtype Populations = Populations
   { populationsValue :: Map Platform [Population]
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance Arbitrary Populations where
   arbitrary = Populations <$> arbitrary
@@ -322,6 +344,8 @@ instance ToSample Populations where
     , (PlatformSteam, [Population 4413 11])
     , (PlatformXboxOne, [Population 1513 11])
     ]
+
+instance Swagger.ToSchema Populations
 
 data Population = Population
   { populationNumPlayers :: Integer
@@ -345,6 +369,8 @@ instance ToSample Population where
     , ("Competitive Standard", Population 595 13)
     ]
 
+instance Swagger.ToSchema Population
+
 data RegionInfo = RegionInfo
   { regionInfoRegion :: Region
   , regionInfoPlatforms :: Platforms
@@ -361,6 +387,8 @@ instance ToJSON RegionInfo where
 
 instance ToSample RegionInfo where
   toSamples _ = singleSample . RegionInfo RegionUSE . Platforms $ Set.fromList [minBound .. maxBound]
+
+instance Swagger.ToSchema RegionInfo
 
 data Region
   = RegionASC
@@ -382,9 +410,11 @@ instance FromJSON Region where
 instance ToJSON Region where
   toJSON = genericToJSON $ pascalConstructorOptions "Region"
 
+instance Swagger.ToSchema Region
+
 newtype Platforms = Platforms
   { platformsValue :: Set Platform
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance Arbitrary Platforms where
   arbitrary = Platforms <$> arbitrary
@@ -399,9 +429,11 @@ instance FromJSON Platforms where
 instance ToJSON Platforms where
   toJSON = toJSON . Text.intercalate "," . map toUrlPiece . Set.toAscList . platformsValue
 
+instance Swagger.ToSchema Platforms
+
 newtype Title = Title
   { titleValue :: Text
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance Arbitrary Title where
   arbitrary = Title <$> arbitraryText
@@ -418,6 +450,8 @@ instance ToJSON Title where
 
 instance ToSample Title where
   toSamples _ = singleSample $ Title "Season3GrandChampion"
+
+instance Swagger.ToSchema Title
 
 data Skill = Skill
   { skillSkill :: Integer
@@ -442,6 +476,8 @@ instance ToSample Skill where
     , ("Xbox One", Skill 1303 17 Nothing "MSTIO")
     ]
 
+instance Swagger.ToSchema Skill
+
 data Stat = Stat
   { statStatType :: StatType
   , statUserId :: Maybe PlayerId
@@ -465,9 +501,11 @@ instance ToSample Stat where
     , ("Xbox One", Stat StatTypeGoals Nothing "MadMassacre510" 43661)
     ]
 
+instance Swagger.ToSchema Stat
+
 newtype Single a = Single
   { singleValue :: a
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance Arbitrary a => Arbitrary (Single a) where
   arbitrary = Single <$> arbitrary
@@ -487,6 +525,8 @@ instance ToJSON a => ToJSON (Single a) where
 instance ToSample a => ToSample (Single a) where
   toSamples _ = map (\(x, y) -> (x, Single y)) $ toSamples Proxy
 
+instance Swagger.ToSchema a => Swagger.ToSchema (Single a)
+
 data Stats = Stats
   { statsStatType :: StatType
   , statsStats :: [TypedStat]
@@ -504,9 +544,11 @@ instance ToJSON Stats where
 instance ToSample Stats where
   toSamples _ = singleSample $ Stats StatTypeGoals $ filter (\x -> statStatType (typedStatValue x) == StatTypeGoals) $ map snd $ toSamples Proxy
 
+instance Swagger.ToSchema Stats
+
 newtype TypedStat = TypedStat
   { typedStatValue :: Stat
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Generic, Ord, Show)
 
 instance Arbitrary TypedStat where
   arbitrary = TypedStat <$> arbitrary
@@ -573,6 +615,8 @@ instance ToJSON TypedStat where
 instance ToSample TypedStat where
   toSamples _ = map (\(x, y) -> (x, TypedStat y)) $ toSamples Proxy
 
+instance Swagger.ToSchema TypedStat
+
 data Player = Player
   { playerUserId :: Maybe PlayerId
   , playerUserName :: Text
@@ -595,6 +639,8 @@ instance ToSample Player where
     , ("Xbox One", Player Nothing "MadMassacre510" $ map snd $ toSamples Proxy)
     ]
 
+instance Swagger.ToSchema Player
+
 data PlayerSkill = PlayerSkill
   { playerSkillDivision :: Integer
   , playerSkillMatchesPlayed :: Integer
@@ -615,6 +661,8 @@ instance ToJSON PlayerSkill where
 
 instance ToSample PlayerSkill where
   toSamples _ = singleSample $ PlayerSkill 0 664 11 1614 19 19
+
+instance Swagger.ToSchema PlayerSkill
 
 arbitraryText :: Gen Text
 arbitraryText = Text.pack <$> arbitrary
