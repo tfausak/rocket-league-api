@@ -358,7 +358,7 @@ instance ToJSON a => ToJSON (Single a) where
   toJSON (Single x) = toJSON [x]
 
 instance ToSample a => ToSample (Single a) where
-  toSamples _ = map (\(x, y) -> (x, Single y)) $ toSamples (Proxy :: Proxy a)
+  toSamples _ = map (\(x, y) -> (x, Single y)) $ toSamples Proxy
 
 data Stats = Stats
   { statsStatType :: StatType
@@ -372,7 +372,7 @@ instance ToJSON Stats where
   toJSON = genericToJSON $ snakeFieldOptions "stats"
 
 instance ToSample Stats where
-  toSamples _ = singleSample $ Stats StatTypeGoals $ filter (\x -> statStatType (typedStatValue x) == StatTypeGoals) $ map snd $ toSamples (Proxy :: Proxy TypedStat)
+  toSamples _ = singleSample $ Stats StatTypeGoals $ filter (\x -> statStatType (typedStatValue x) == StatTypeGoals) $ map snd $ toSamples Proxy
 
 newtype TypedStat = TypedStat
   { typedStatValue :: Stat
@@ -438,7 +438,7 @@ instance ToJSON TypedStat where
     ]
 
 instance ToSample TypedStat where
-  toSamples _ = map (\(x, y) -> (x, TypedStat y)) $ toSamples (Proxy :: Proxy Stat)
+  toSamples _ = map (\(x, y) -> (x, TypedStat y)) $ toSamples Proxy
 
 data Player = Player
   { playerUserId :: Maybe PlayerId
@@ -454,9 +454,9 @@ instance ToJSON Player where
 
 instance ToSample Player where
   toSamples _ =
-    [ ("PlayStation 4", Player Nothing "harmen501" $ map snd $ toSamples (Proxy :: Proxy PlayerSkill))
-    , ("Steam", Player (Just $ PlayerId "76561198139217900") "Ronito" $ map snd $ toSamples (Proxy :: Proxy PlayerSkill))
-    , ("Xbox One", Player Nothing "MadMassacre510" $ map snd $ toSamples (Proxy :: Proxy PlayerSkill))
+    [ ("PlayStation 4", Player Nothing "harmen501" $ map snd $ toSamples Proxy)
+    , ("Steam", Player (Just $ PlayerId "76561198139217900") "Ronito" $ map snd $ toSamples Proxy)
+    , ("Xbox One", Player Nothing "MadMassacre510" $ map snd $ toSamples Proxy)
     ]
 
 data PlayerSkill = PlayerSkill
