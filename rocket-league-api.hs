@@ -8,6 +8,7 @@
 
 module Main where
 
+import Control.Concurrent
 import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types
@@ -20,10 +21,12 @@ import Data.Set (Set)
 import Data.Text (Text)
 import GHC.Generics
 import Network.HTTP.Client.TLS
+import Network.Wai.Handler.Warp
 import Servant.API
 import Servant.Client
 import Servant.Docs hiding (Endpoint)
 import Servant.Mock
+import Servant.Server
 import Servant.Swagger
 import System.Environment
 import Test.QuickCheck
@@ -42,48 +45,49 @@ main = do
   let
     token = Just . Token $ Text.pack rawToken
     clientEnv = ClientEnv manager baseUrl
-    run f = do
+    test f = do
       x <- runClientM (f token) clientEnv
       case x of
         Left l -> fail $ show l
         Right r -> print r
 
-  let _ = mock api Proxy
+  void . forkIO . run 8080 . serve api $ mock api Proxy
   putStrLn . markdown $ docs api
   LazyByteString.putStr . encode $ toSwagger api
+  putStrLn ""
 
-  run $ getPopulation
-  run $ getRegions
+  test $ getPopulation
+  test $ getRegions
 
   forM_ platforms $ \platform -> do
     print platform
-    run $ getStatsLeaderboard platform
+    test $ getStatsLeaderboard platform
 
     forM_ statTypes $ \statType -> do
       print (platform, statType)
-      run $ getStatLeaderboard platform statType
+      test $ getStatLeaderboard platform statType
 
     forM_ playlists $ \playlist -> do
       print (platform, playlist)
-      run $ getSkillsLeaderboard platform playlist
+      test $ getSkillsLeaderboard platform playlist
 
   forM_ players $ \(platform, rawPlayerIds) -> do
     let playerIds = PlayerIds (Set.fromList rawPlayerIds)
     print (platform, playerIds)
-    run $ postPlayerSkills platform playerIds
+    test $ postPlayerSkills platform playerIds
 
     forM_ statTypes $ \statType -> do
       print (platform, playerIds, statType)
-      run $ postPlayerStat platform statType playerIds
+      test $ postPlayerStat platform statType playerIds
 
     forM_ rawPlayerIds $ \playerId -> do
       print (platform, playerId)
-      run $ getPlayerSkills platform playerId
-      run $ getPlayerTitles platform playerId
+      test $ getPlayerSkills platform playerId
+      test $ getPlayerTitles platform playerId
 
       forM_ statTypes $ \statType -> do
         print (platform, playerId, statType)
-        run $ getPlayerStat platform statType playerId
+        test $ getPlayerStat platform statType playerId
  where
   baseUrl = BaseUrl Https "api.rocketleaguegame.com" 443 "/api/v1"
   platforms = [minBound .. maxBound]

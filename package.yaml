@@ -13,10 +13,12 @@ dependencies:
   - servant-client
   - servant-docs
   - servant-mock
+  - servant-server
   - servant-swagger
   - swagger2
   - text
   - vector
+  - warp
 ghc-options: -Wall
 
 executables:
