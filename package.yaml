@@ -11,7 +11,9 @@ dependencies:
   - servant
   - servant-client
   - servant-docs
+  - servant-js
   - servant-mock
+  - servant-ruby
   - servant-server
   - servant-swagger
   - servant-swagger-ui

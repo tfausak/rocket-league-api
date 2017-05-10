@@ -25,7 +25,9 @@ import Network.Wai.Handler.Warp
 import Servant.API
 import Servant.Client
 import Servant.Docs hiding (Endpoint)
+import Servant.JS
 import Servant.Mock
+import Servant.Ruby
 import Servant.Server
 import Servant.Swagger
 import Servant.Swagger.UI
@@ -36,6 +38,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Swagger as Swagger
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text
 import qualified Data.Vector as Vector
 
 main :: IO ()
@@ -54,7 +57,10 @@ main = do
   void . forkIO . run 8080 $ serve
     (Proxy :: Proxy (SwaggerSchemaUI "swagger-ui" "swagger.json" :<|> "api" :> "v1" :> Api))
     (swaggerSchemaUIServer (toSwagger api) :<|> mock api Proxy)
+
   putStrLn . markdown $ docs api
+  Text.putStrLn $ jsForAPI api vanillaJS
+  Text.putStrLn $ ruby (NameSpace [] "RocketLeague") api
 
   putStrLn "Press Enter to run tests, Ctrl-C to exit."
   void getLine
