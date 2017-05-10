@@ -14,15 +14,10 @@ dependencies:
   - vector
 ghc-options: -Wall
 
-library:
-  source-dirs: library
-
 executables:
   rocket-league-api:
-    dependencies: rocket-league-api
+    main: rocket-league-api.hs
     ghc-options:
       - -rtsopts
       - -threaded
       - -with-rtsopts=-N
-    main: rocket-league-api.hs
-    source-dirs: executables
