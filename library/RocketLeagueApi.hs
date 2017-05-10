@@ -1,8 +1,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 -- https://api.rocketleaguegame.com/docs/
 module RocketLeagueApi where
@@ -18,6 +20,7 @@ import Data.Text (Text)
 import GHC.Generics
 import Servant.API
 import Servant.Client
+import Servant.Docs hiding (Endpoint)
 
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -26,7 +29,7 @@ import qualified Data.Vector as Vector
 getPlayerSkills :: Platform -> PlayerId -> Maybe Token -> ClientM (Single Player)
 postPlayerSkills :: Platform -> PlayerIds -> Maybe Token -> ClientM [Player]
 getPlayerTitles :: Platform -> PlayerId -> Maybe Token -> ClientM [Title]
-getPopulation :: Maybe Token -> ClientM (Map Platform [Population])
+getPopulation :: Maybe Token -> ClientM Populations
 getRegions :: Maybe Token -> ClientM [RegionInfo]
 getSkillsLeaderboard :: Platform -> Playlist -> Maybe Token -> ClientM [Skill]
 getStatsLeaderboard :: Platform -> Maybe Token -> ClientM [Stats]
@@ -64,7 +67,7 @@ type Api
 type GetPlayerSkills = CapturePlatform :> "playerskills" :> CapturePlayerId :> Endpoint Get (Single Player)
 type PostPlayerSkills = CapturePlatform :> "playerskills" :> BodyPlayerIds :> Endpoint Post [Player]
 type GetPlayerTitles = CapturePlatform :> "playertitles" :> CapturePlayerId :> Endpoint Get [Title]
-type GetPopulation = "population" :> Endpoint Get (Map Platform [Population])
+type GetPopulation = "population" :> Endpoint Get Populations
 type GetRegions = "regions" :> Endpoint Get [RegionInfo]
 type GetSkillsLeaderboard = CapturePlatform :> "leaderboard" :> "skills" :> CapturePlaylist :> Endpoint Get [Skill]
 type GetStatsLeaderboard = CapturePlatform :> "leaderboard" :> "stats" :> Endpoint Get [Stats]
@@ -80,6 +83,18 @@ type CapturePlayerId = Capture "player_id" PlayerId
 type BodyPlayerIds = ReqBody '[JSON] PlayerIds
 type CapturePlaylist = Capture "playlist" Playlist
 type CaptureStatType = Capture "stat_type" StatType
+
+instance ToCapture CapturePlatform where
+  toCapture _ = DocCapture "platform" "TODO"
+
+instance ToCapture CapturePlayerId where
+  toCapture _ = DocCapture "player_id" "TODO"
+
+instance ToCapture CapturePlaylist where
+  toCapture _ = DocCapture "playlist" "TODO"
+
+instance ToCapture CaptureStatType where
+  toCapture _ = DocCapture "stat_type" "TODO"
 
 newtype Token = Token
   { tokenValue :: Text
@@ -102,6 +117,15 @@ instance FromJSONKey Platform where
 
 instance ToHttpApiData Platform where
   toUrlPiece = Text.toLower . Text.pack . pascalModifier "Platform" . show
+
+instance ToJSON Platform where
+  toJSON = String . toUrlPiece
+
+instance ToJSONKey Platform where
+  toJSONKey = toJSONKeyText toUrlPiece
+
+instance ToSample Platform where
+  toSamples _ = noSamples
 
 newtype PlayerId = PlayerId
   { playerIdValue :: Text
@@ -130,6 +154,9 @@ instance ToJSON PlayerIds where
     [ "player_ids" .= playerIdsValue playerIds
     ]
 
+instance ToSample PlayerIds where
+  toSamples _ = noSamples
+
 data Playlist
   = PlaylistCompetitiveSoloDuel
   | PlaylistCompetitiveDoubles
@@ -155,6 +182,26 @@ instance FromJSON StatType where
 instance ToHttpApiData StatType where
   toUrlPiece = Text.pack . snakeModifier "StatType" . show
 
+instance ToJSON StatType where
+  toJSON = genericToJSON $ snakeConstructorOptions "StatType"
+
+newtype Populations = Populations
+  { populationsValue :: Map Platform [Population]
+  } deriving (Eq, Ord, Show)
+
+instance FromJSON Populations where
+  parseJSON v = do
+    value <- parseJSON v
+    pure Populations
+      { populationsValue = value
+      }
+
+instance ToJSON Populations where
+  toJSON = toJSON . populationsValue
+
+instance ToSample Populations where
+  toSamples _ = noSamples
+
 data Population = Population
   { populationNumPlayers :: Integer
   , populationPlaylistID :: Integer
@@ -163,6 +210,12 @@ data Population = Population
 instance FromJSON Population where
   parseJSON = genericParseJSON $ pascalFieldOptions "population"
 
+instance ToJSON Population where
+  toJSON = genericToJSON $ pascalFieldOptions "population"
+
+instance ToSample Population where
+  toSamples _ = noSamples
+
 data RegionInfo = RegionInfo
   { regionInfoRegion :: Region
   , regionInfoPlatforms :: Platforms
@@ -170,6 +223,12 @@ data RegionInfo = RegionInfo
 
 instance FromJSON RegionInfo where
   parseJSON = genericParseJSON $ snakeFieldOptions "regionInfo"
+
+instance ToJSON RegionInfo where
+  toJSON = genericToJSON $ snakeFieldOptions "regionInfo"
+
+instance ToSample RegionInfo where
+  toSamples _ = noSamples
 
 data Region
   = RegionASC
@@ -185,6 +244,9 @@ data Region
 instance FromJSON Region where
   parseJSON = genericParseJSON $ pascalConstructorOptions "Region"
 
+instance ToJSON Region where
+  toJSON = genericToJSON $ pascalConstructorOptions "Region"
+
 newtype Platforms = Platforms
   { platformsValue :: Set Platform
   } deriving (Eq, Ord, Show)
@@ -195,6 +257,9 @@ instance FromJSON Platforms where
     pure Platforms
       { platformsValue = Set.fromList platforms
       }
+
+instance ToJSON Platforms where
+  toJSON = toJSON . Text.intercalate "," . map toUrlPiece . Set.toAscList . platformsValue
 
 newtype Title = Title
   { titleValue :: Text
@@ -207,6 +272,12 @@ instance FromJSON Title where
       { titleValue = title
       }
 
+instance ToJSON Title where
+  toJSON title = object ["title" .= titleValue title]
+
+instance ToSample Title where
+  toSamples _ = noSamples
+
 data Skill = Skill
   { skillSkill :: Integer
   , skillTier :: Integer
@@ -217,6 +288,12 @@ data Skill = Skill
 instance FromJSON Skill where
   parseJSON = genericParseJSON $ snakeFieldOptions "skill"
 
+instance ToJSON Skill where
+  toJSON = genericToJSON $ snakeFieldOptions "skill"
+
+instance ToSample Skill where
+  toSamples _ = noSamples
+
 data Stat = Stat
   { statStatType :: StatType
   , statUserId :: Maybe PlayerId
@@ -226,6 +303,12 @@ data Stat = Stat
 
 instance FromJSON Stat where
   parseJSON = genericParseJSON $ snakeFieldOptions "stat"
+
+instance ToJSON Stat where
+  toJSON = genericToJSON $ snakeFieldOptions "stat"
+
+instance ToSample Stat where
+  toSamples _ = noSamples
 
 newtype Single a = Single
   { singleValue :: a
@@ -240,6 +323,12 @@ instance FromJSON a => FromJSON (Single a) where
         }
     _ -> fail $ "invalid Single: " ++ show a
 
+instance ToJSON a => ToJSON (Single a) where
+  toJSON (Single x) = toJSON [x]
+
+instance ToSample a => ToSample (Single a) where
+  toSamples _ = map (\(x, y) -> (x, Single y)) $ toSamples (Proxy :: Proxy a)
+
 data Stats = Stats
   { statsStatType :: StatType
   , statsStats :: [TypedStat]
@@ -247,6 +336,12 @@ data Stats = Stats
 
 instance FromJSON Stats where
   parseJSON = genericParseJSON $ snakeFieldOptions "stats"
+
+instance ToJSON Stats where
+  toJSON = genericToJSON $ snakeFieldOptions "stats"
+
+instance ToSample Stats where
+  toSamples _ = noSamples
 
 newtype TypedStat = TypedStat
   { typedStatValue :: Stat
@@ -304,6 +399,13 @@ instance FromJSON TypedStat where
       { typedStatValue = stat
       }
 
+instance ToJSON TypedStat where
+  toJSON x = object
+    [ "user_id" .= statUserId (typedStatValue x)
+    , "user_name" .= statUserName (typedStatValue x)
+    , toUrlPiece (statStatType (typedStatValue x)) .= statValue (typedStatValue x)
+    ]
+
 data Player = Player
   { playerUserId :: Maybe PlayerId
   , playerUserName :: Text
@@ -312,6 +414,12 @@ data Player = Player
 
 instance FromJSON Player where
   parseJSON = genericParseJSON $ snakeFieldOptions "player"
+
+instance ToJSON Player where
+  toJSON = genericToJSON $ snakeFieldOptions "player"
+
+instance ToSample Player where
+  toSamples _ = noSamples
 
 data PlayerSkill = PlayerSkill
   { playerSkillDivision :: Integer
@@ -324,6 +432,9 @@ data PlayerSkill = PlayerSkill
 
 instance FromJSON PlayerSkill where
   parseJSON = genericParseJSON $ snakeFieldOptions "playerSkill"
+
+instance ToJSON PlayerSkill where
+  toJSON = genericToJSON $ snakeFieldOptions "playerSkill"
 
 pascalConstructorOptions :: String -> Options
 pascalConstructorOptions prefix = defaultOptions

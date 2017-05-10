@@ -6,6 +6,7 @@ import Control.Monad
 import Network.HTTP.Client.TLS
 import RocketLeagueApi
 import Servant.Client
+import Servant.Docs
 import System.Environment
 
 import qualified Data.Set as Set
@@ -23,6 +24,8 @@ main = do
       case x of
         Left l -> fail $ show l
         Right r -> print r
+
+  putStrLn . markdown $ docs api
 
   run $ getPopulation
   run $ getRegions
