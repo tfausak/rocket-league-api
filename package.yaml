@@ -6,10 +6,12 @@ dependencies:
   - base
   - containers
   - http-client-tls
+  - QuickCheck
   - scientific
   - servant
   - servant-client
   - servant-docs
+  - servant-mock
   - text
   - vector
 ghc-options: -Wall

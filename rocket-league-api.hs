@@ -22,7 +22,9 @@ import Network.HTTP.Client.TLS
 import Servant.API
 import Servant.Client
 import Servant.Docs hiding (Endpoint)
+import Servant.Mock
 import System.Environment
+import Test.QuickCheck
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -41,6 +43,8 @@ main = do
       case x of
         Left l -> fail $ show l
         Right r -> print r
+
+  let _ = mock api Proxy
 
   putStrLn . markdown $ docs api
 
@@ -161,6 +165,11 @@ newtype Token = Token
   { tokenValue :: Text
   } deriving (Eq, Ord, Show)
 
+instance FromHttpApiData Token where
+  parseUrlPiece t = case Text.words t of
+    ["Token", token] -> pure $ Token token
+    _ -> fail $ "invalid Token: " ++ show t
+
 instance ToHttpApiData Token where
   toUrlPiece token = Text.pack "Token " <> tokenValue token
 
@@ -169,6 +178,12 @@ data Platform
   | PlatformSteam
   | PlatformXboxOne
   deriving (Bounded, Enum, Eq, Generic, Ord, Show)
+
+instance Arbitrary Platform where
+  arbitrary = arbitraryBoundedEnum
+
+instance FromHttpApiData Platform where
+  parseUrlPiece = parseUrlPieceViaJson
 
 instance FromJSON Platform where
   parseJSON = genericParseJSON $ pascalConstructorOptions "Platform"
@@ -191,6 +206,12 @@ instance ToSample Platform where
 newtype PlayerId = PlayerId
   { playerIdValue :: Text
   } deriving (Eq, Ord, Show)
+
+instance Arbitrary PlayerId where
+  arbitrary = PlayerId <$> arbitraryText
+
+instance FromHttpApiData PlayerId where
+  parseUrlPiece = parseUrlPieceViaJson
 
 instance FromJSON PlayerId where
   parseJSON v = case v of
@@ -217,6 +238,11 @@ newtype PlayerIds = PlayerIds
   { playerIdsValue :: Set PlayerId
   } deriving (Eq, Ord, Show)
 
+instance FromJSON PlayerIds where
+  parseJSON = withObject "PlayerIds" $ \o -> do
+    x <- o .: "player_ids"
+    pure PlayerIds { playerIdsValue = x }
+
 instance ToJSON PlayerIds where
   toJSON playerIds = object
     [ "player_ids" .= playerIdsValue playerIds
@@ -238,6 +264,14 @@ data Playlist
   | PlaylistCompetitiveStandard
   deriving (Bounded, Enum, Eq, Ord, Show)
 
+instance FromHttpApiData Playlist where
+  parseUrlPiece t = case t of
+    "10" -> pure PlaylistCompetitiveSoloDuel
+    "11" -> pure PlaylistCompetitiveDoubles
+    "12" -> pure PlaylistCompetitiveSoloStandard
+    "13" -> pure PlaylistCompetitiveStandard
+    _ -> fail $ "invalid Playlist: " ++ show t
+
 instance ToHttpApiData Playlist where
   toUrlPiece = Text.pack . show . (+ 10) . fromEnum
 
@@ -249,6 +283,12 @@ data StatType
   | StatTypeShots
   | StatTypeWins
   deriving (Bounded, Enum, Eq, Generic, Ord, Show)
+
+instance Arbitrary StatType where
+  arbitrary = arbitraryBoundedEnum
+
+instance FromHttpApiData StatType where
+  parseUrlPiece = parseUrlPieceViaJson
 
 instance FromJSON StatType where
   parseJSON = genericParseJSON $ snakeConstructorOptions "StatType"
@@ -262,6 +302,9 @@ instance ToJSON StatType where
 newtype Populations = Populations
   { populationsValue :: Map Platform [Population]
   } deriving (Eq, Ord, Show)
+
+instance Arbitrary Populations where
+  arbitrary = Populations <$> arbitrary
 
 instance FromJSON Populations where
   parseJSON v = do
@@ -285,6 +328,9 @@ data Population = Population
   , populationPlaylistID :: Integer
   } deriving (Eq, Generic, Ord, Show)
 
+instance Arbitrary Population where
+  arbitrary = Population <$> arbitrary <*> arbitrary
+
 instance FromJSON Population where
   parseJSON = genericParseJSON $ pascalFieldOptions "population"
 
@@ -303,6 +349,9 @@ data RegionInfo = RegionInfo
   { regionInfoRegion :: Region
   , regionInfoPlatforms :: Platforms
   } deriving (Eq, Generic, Ord, Show)
+
+instance Arbitrary RegionInfo where
+  arbitrary = RegionInfo <$> arbitrary <*> arbitrary
 
 instance FromJSON RegionInfo where
   parseJSON = genericParseJSON $ snakeFieldOptions "regionInfo"
@@ -324,6 +373,9 @@ data Region
   | RegionUSW
   deriving (Bounded, Enum, Eq, Generic, Ord, Show)
 
+instance Arbitrary Region where
+  arbitrary = arbitraryBoundedEnum
+
 instance FromJSON Region where
   parseJSON = genericParseJSON $ pascalConstructorOptions "Region"
 
@@ -333,6 +385,9 @@ instance ToJSON Region where
 newtype Platforms = Platforms
   { platformsValue :: Set Platform
   } deriving (Eq, Ord, Show)
+
+instance Arbitrary Platforms where
+  arbitrary = Platforms <$> arbitrary
 
 instance FromJSON Platforms where
   parseJSON = withText "Platforms" $ \t -> do
@@ -347,6 +402,9 @@ instance ToJSON Platforms where
 newtype Title = Title
   { titleValue :: Text
   } deriving (Eq, Ord, Show)
+
+instance Arbitrary Title where
+  arbitrary = Title <$> arbitraryText
 
 instance FromJSON Title where
   parseJSON = withObject "Title" $ \o -> do
@@ -368,6 +426,9 @@ data Skill = Skill
   , skillUserName :: Text
   } deriving (Eq, Generic, Ord, Show)
 
+instance Arbitrary Skill where
+  arbitrary = Skill <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitraryText
+
 instance FromJSON Skill where
   parseJSON = genericParseJSON $ snakeFieldOptions "skill"
 
@@ -388,6 +449,9 @@ data Stat = Stat
   , statValue :: Integer
   } deriving (Eq, Generic, Ord, Show)
 
+instance Arbitrary Stat where
+  arbitrary = Stat <$> arbitrary <*> arbitrary <*> arbitraryText <*> arbitrary
+
 instance FromJSON Stat where
   parseJSON = genericParseJSON $ snakeFieldOptions "stat"
 
@@ -404,6 +468,9 @@ instance ToSample Stat where
 newtype Single a = Single
   { singleValue :: a
   } deriving (Eq, Ord, Show)
+
+instance Arbitrary a => Arbitrary (Single a) where
+  arbitrary = Single <$> arbitrary
 
 instance FromJSON a => FromJSON (Single a) where
   parseJSON = withArray "Single" $ \a -> case Vector.toList a of
@@ -425,6 +492,9 @@ data Stats = Stats
   , statsStats :: [TypedStat]
   } deriving (Eq, Generic, Ord, Show)
 
+instance Arbitrary Stats where
+  arbitrary = Stats <$> arbitrary <*> arbitrary
+
 instance FromJSON Stats where
   parseJSON = genericParseJSON $ snakeFieldOptions "stats"
 
@@ -437,6 +507,9 @@ instance ToSample Stats where
 newtype TypedStat = TypedStat
   { typedStatValue :: Stat
   } deriving (Eq, Ord, Show)
+
+instance Arbitrary TypedStat where
+  arbitrary = TypedStat <$> arbitrary
 
 instance FromJSON TypedStat where
   parseJSON = withObject "TypedStat" $ \o -> do
@@ -506,6 +579,9 @@ data Player = Player
   , playerPlayerSkills :: [PlayerSkill]
   } deriving (Eq, Generic, Ord, Show)
 
+instance Arbitrary Player where
+  arbitrary = Player <$> arbitrary <*> arbitraryText <*> arbitrary
+
 instance FromJSON Player where
   parseJSON = genericParseJSON $ snakeFieldOptions "player"
 
@@ -528,6 +604,9 @@ data PlayerSkill = PlayerSkill
   , playerSkillTierMax :: Integer
   } deriving (Eq, Generic, Ord, Show)
 
+instance Arbitrary PlayerSkill where
+  arbitrary = PlayerSkill <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+
 instance FromJSON PlayerSkill where
   parseJSON = genericParseJSON $ snakeFieldOptions "playerSkill"
 
@@ -536,6 +615,14 @@ instance ToJSON PlayerSkill where
 
 instance ToSample PlayerSkill where
   toSamples _ = singleSample $ PlayerSkill 0 664 11 1614 19 19
+
+arbitraryText :: Gen Text
+arbitraryText = Text.pack <$> arbitrary
+
+parseUrlPieceViaJson :: FromJSON a => Text -> Either Text a
+parseUrlPieceViaJson t = case parseEither parseJSON $ String t of
+  Left l -> Left $ Text.pack l
+  Right r -> Right r
 
 pascalConstructorOptions :: String -> Options
 pascalConstructorOptions prefix = defaultOptions
